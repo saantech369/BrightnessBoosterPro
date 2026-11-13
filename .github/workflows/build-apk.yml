@@ -1,4 +1,3 @@
-
 name: Build Fire TV APK
 
 on:
@@ -28,16 +27,8 @@ jobs:
           mkdir -p project
           unzip -q "$ZIP_FILE" -d project
 
-          echo "Project files:"
+          echo "Extracted project:"
           ls -la project
-
-      - name: Match Java and Kotlin targets
-        shell: bash
-        run: |
-          sed -i 's/VERSION_1_8/VERSION_17/g' project/app/build.gradle.kts
-
-          echo "Checking Android build configuration:"
-          grep -nE 'sourceCompatibility|targetCompatibility|jvmTarget' project/app/build.gradle.kts || true
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -50,9 +41,31 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Configure Java and Kotlin targets
+        shell: bash
+        run: |
+          cat > /tmp/targets.gradle <<'EOF'
+          allprojects {
+              afterEvaluate {
+                  tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+                      sourceCompatibility = '17'
+                      targetCompatibility = '17'
+                  }
+
+                  tasks.configureEach { task ->
+                      if (task.name.toLowerCase().contains('kotlin')) {
+                          if (task.hasProperty('kotlinOptions')) {
+                              task.kotlinOptions.jvmTarget = '17'
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+
       - name: Build APK
         working-directory: project
-        run: gradle assembleDebug
+        run: gradle -I /tmp/targets.gradle assembleDebug
 
       - name: Upload APK
         if: success()
@@ -60,3 +73,5 @@ jobs:
         with:
           name: BrightnessBoosterPro-APK
           path: project/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          
