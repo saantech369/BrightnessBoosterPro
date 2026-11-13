@@ -15,17 +15,29 @@ jobs:
       - name: Download repository
         uses: actions/checkout@v4
 
-      - name: Find and extract project ZIP
+      - name: Extract Android project
+        shell: bash
         run: |
           ZIP_FILE=$(find . -maxdepth 1 -name '*.zip' | head -n 1)
+
           if [ -z "$ZIP_FILE" ]; then
             echo "Project ZIP not found"
             exit 1
           fi
-          mkdir project
-                    unzip -q "$ZIP_FILE" -d project
-          sed -i 's/jvmTarget = "17"/jvmTarget = "1.8"/g' project/app/build.gradle.kts
+
+          mkdir -p project
+          unzip -q "$ZIP_FILE" -d project
+
+          echo "Project files:"
           ls -la project
+
+      - name: Match Java and Kotlin targets
+        shell: bash
+        run: |
+          sed -i 's/VERSION_1_8/VERSION_17/g' project/app/build.gradle.kts
+
+          echo "Checking Android build configuration:"
+          grep -nE 'sourceCompatibility|targetCompatibility|jvmTarget' project/app/build.gradle.kts || true
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -43,8 +55,8 @@ jobs:
         run: gradle assembleDebug
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: BrightnessBoosterPro-APK
           path: project/app/build/outputs/apk/debug/app-debug.apk
-          
