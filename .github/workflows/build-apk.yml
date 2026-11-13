@@ -23,7 +23,8 @@ jobs:
             exit 1
           fi
           mkdir project
-          unzip -q "$ZIP_FILE" -d project
+                    unzip -q "$ZIP_FILE" -d project
+          sed -i 's/jvmTarget = "17"/jvmTarget = "1.8"/g' project/app/build.gradle.kts
           ls -la project
 
       - name: Set up Java
